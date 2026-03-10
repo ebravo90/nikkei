@@ -11,7 +11,7 @@ import ast
 import hashlib
 import json
 import os
-from typing import Dict, Any, Callable, Type
+from typing import Dict, Any, Callable
 from pydantic import BaseModel
 
 from core.security import get_secret

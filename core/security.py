@@ -71,7 +71,7 @@ def require_interactive_approval(action_description: str, bypass_token: str = No
     an exception to pause execution and let the orchestrator issue an async prompt.
     """
     if bypass_token and bypass_token in approved_action_tokens:
-        print(f"[SECURITY] Action auto-approved via valid bypass token.")
+        print("[SECURITY] Action auto-approved via valid bypass token.")
         # We consume the token so it can't be reused (Replay Attack prevention)
         approved_action_tokens.remove(bypass_token)
         return True

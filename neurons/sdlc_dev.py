@@ -3,7 +3,7 @@ SDLC (Software Development Life Cycle) Neuron for Project Nikkei.
 A complex multi-agent orchestrator implementing the State Machine pattern.
 """
 import random
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pydantic import BaseModel, Field
 
 from neurons.base import Neuron

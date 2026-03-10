@@ -5,7 +5,6 @@ that fails the AST/Hash checks, it triggers a desktop notification.
 """
 import os
 import time
-import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 

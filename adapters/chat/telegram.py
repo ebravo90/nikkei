@@ -5,11 +5,9 @@ Bridged explicitly into the synchronous AgentZero orchestrator using asyncio to_
 """
 import asyncio
 import logging
-import threading
 import uuid
 import json
 import html
-from typing import Any
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, CallbackQueryHandler, filters, ContextTypes

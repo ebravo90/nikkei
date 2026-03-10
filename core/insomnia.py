@@ -3,11 +3,9 @@ Cross-platform Anti-Sleep Manager for Project Nikkei.
 Prevents the host OS from going to sleep or hibernating while the OS is running.
 """
 import os
-import sys
 import platform
 import logging
 import subprocess
-import signal
 
 class Insomnia:
     def __init__(self):

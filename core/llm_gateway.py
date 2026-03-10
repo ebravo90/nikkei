@@ -32,7 +32,7 @@ class Tier1LLM(LLMProvider):
         return genai.Client(api_key=api_key)
 
     def generate(self, prompt: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        print(f"[Tier1] Routing prompt to gemini-2.5-flash...")
+        print("[Tier1] Routing prompt to gemini-2.5-flash...")
         
         try:
             client = self._get_client()
@@ -90,7 +90,7 @@ class Tier2LLM(LLMProvider):
         return genai.Client(api_key=api_key)
 
     def generate(self, prompt: str, tools: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        print(f"[Tier2] Executing logic with gemini-2.5-pro (Web Grounding Active)...")
+        print("[Tier2] Executing logic with gemini-2.5-pro (Web Grounding Active)...")
         
         try:
             client = self._get_client()

@@ -31,13 +31,13 @@ def main():
     )
 
     # "status" subcommand
-    status_parser = subparsers.add_parser("status", help="Print system vital signs (Telemetry)")
+    subparsers.add_parser("status", help="Print system vital signs (Telemetry)")
 
     # "quarantine" subcommand
     quarantine_parser = subparsers.add_parser("quarantine", help="Manage quarantined files (Headless Dashboard)")
     quarantine_subparsers = quarantine_parser.add_subparsers(dest="q_command", help="Quarantine actions")
     
-    q_list_parser = quarantine_subparsers.add_parser("list", help="List quarantined and currently whitelisted files")
+    quarantine_subparsers.add_parser("list", help="List quarantined and currently whitelisted files")
     
     q_approve_parser = quarantine_subparsers.add_parser("approve", help="Approve and whitelist a quarantined file")
     q_approve_parser.add_argument("filename", type=str, help="The exact filename (e.g. 'my_tentacle.py') to approve")
@@ -171,7 +171,7 @@ def _run_quarantine_cmd(args):
 
 def _run_test_sandbox(tool_name: str, mock_args_str: str):
     """Execution Logic for the developer sandbox testing a specific tool."""
-    print(f"\n[Nikkei SDET Sandbox]")
+    print("\n[Nikkei SDET Sandbox]")
     print(f"Targeting Tool: {tool_name}")
     print(f"Mock Args: {mock_args_str}\n")
     
