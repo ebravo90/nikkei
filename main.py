@@ -9,10 +9,10 @@ from pprint import pprint
 from core.registry import plugin_registry
 from core.agent_zero import AgentZero
 from core.security import get_secret
-from core.watcher import start_watchdog
 from adapters.chat.telegram import TelegramAdapter
 from ui.oauth_server import start_server
 from ui.tray_app import start_tray_app
+from core.insomnia import insomnia_manager
 
 
 def initialize_system():
@@ -65,33 +65,40 @@ def start_cli_fallback(agent: AgentZero):
 
 def main():
     """Main execution loop."""
-    agent = initialize_system()
-    
-    # Start Background Services
-    print("\n[Nikkei OS] Starting background services...")
-    start_watchdog()
-    start_server(port=5000)
-    start_tray_app()
-    print("[Nikkei OS] Background services online.\n")
-    
-    # 3. Attempt to initialize the Chat Adapter
-    # Check if we have the necessary credentials
-    bot_token = get_secret("TELEGRAM_BOT_TOKEN")
-    
-    if bot_token:
-        print("[Nikkei OS] Telegram credentials found. Booting Chat Adapter...")
-        try:
-            telegram_adapter = TelegramAdapter()
-            # Under normal ptb this would block and listen indefinitely
-            telegram_adapter.start_listening()
-            print("[Nikkei OS] Telegram Adapter started successfully.")
-        except Exception as e:
-            print(f"[Nikkei OS] Failed to start Telegram Adapter: {e}. Falling back to CLI.")
+    try:
+        agent = initialize_system()
+        
+        # Start Background Services
+        print("\n[Nikkei OS] Starting background services...")
+        insomnia_manager.keep_awake()
+        start_watchdog()
+        start_server(port=5000)
+        start_tray_app()
+        print("[Nikkei OS] Background services online.\n")
+        
+        # 3. Attempt to initialize the Chat Adapter
+        # Check if we have the necessary credentials
+        bot_token = get_secret("TELEGRAM_BOT_TOKEN")
+        
+        if bot_token:
+            print("[Nikkei OS] Telegram credentials found. Booting Chat Adapter...")
+            try:
+                telegram_adapter = TelegramAdapter()
+                # Under normal ptb this would block and listen indefinitely
+                telegram_adapter.start_listening()
+                print("[Nikkei OS] Telegram Adapter started successfully.")
+            except Exception as e:
+                print(f"[Nikkei OS] Failed to start Telegram Adapter: {e}. Falling back to CLI.")
+                start_cli_fallback(agent)
+        else:
+            print("[Nikkei OS] Missing TELEGRAM_BOT_TOKEN in keyring.")
+            print("[Nikkei OS] Falling back to interactive CLI mode.")
             start_cli_fallback(agent)
-    else:
-        print("[Nikkei OS] Missing TELEGRAM_BOT_TOKEN in keyring.")
-        print("[Nikkei OS] Falling back to interactive CLI mode.")
-        start_cli_fallback(agent)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        insomnia_manager.allow_sleep()
+        print("[Nikkei OS] System shutdown complete.")
 
 
 if __name__ == "__main__":
