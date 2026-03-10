@@ -3,7 +3,7 @@ import json
 import os
 import hashlib
 import requests
-from flask import Flask, request, render_template_string, jsonify, redirect, url_for
+from flask import Flask, request, render_template_string, jsonify, redirect, url_for, session
 from google_auth_oauthlib.flow import Flow
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
@@ -12,6 +12,7 @@ from core.security import set_secret, get_secret
 from core.registry import plugin_registry
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
 # Polished UI HTML template
 HTML_TEMPLATE = """
@@ -101,6 +102,7 @@ HTML_TEMPLATE = """
         
         .message { padding: 12px; margin-bottom: 20px; border-radius: 4px; }
         .success { background-color: var(--success-bg); border: 1px solid var(--success-color); color: var(--success-color); }
+        .error { background-color: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger-color); color: var(--danger-color); }
         
         .oauth-btn { background-color: #4285F4; margin-top: 10px; }
         .oauth-btn:hover { background-color: #3367D6; }
@@ -205,6 +207,9 @@ HTML_TEMPLATE = """
         {% if message %}
         <div class="message success"><i class="fas fa-check-circle"></i> {{ message }}</div>
         {% endif %}
+        {% if error_msg %}
+        <div class="message error"><i class="fas fa-exclamation-circle"></i> {{ error_msg }}</div>
+        {% endif %}
 
         <form action="/save_token" method="POST">
             <h2><i class="fas fa-sliders-h"></i> Core Settings</h2>
@@ -285,6 +290,7 @@ HTML_TEMPLATE = """
             <div style="margin-top: 20px;">
                 <form action="/save_token" method="POST">
                     <h3><i class="fas fa-hdd"></i> Drive-as-a-Queue (DaaQ)</h3>
+                    <p style="font-size: 0.9em; line-height: 1.5;"><strong>What is this?</strong> DaaQ (Drive-as-a-Queue) allows Nikkei to bypass strict corporate firewalls by using a Google Drive folder as a secure, offline message queue.<br><strong>Benefits:</strong> Control your home PC from work without opening network ports.<br><strong>Risks:</strong> Nikkei will have access to create and read files in your Drive (restricted only to files it creates).</p>
                     <div class="form-group">
                         <label for="DAAQ_SECRET_KEY">DaaQ Secret Key (HMAC)</label>
                         <input type="password" id="DAAQ_SECRET_KEY" name="DAAQ_SECRET_KEY" placeholder="Local symmetric key for Drive-as-a-Queue">
@@ -434,6 +440,7 @@ HTML_TEMPLATE = """
 def index():
     """Serve the configuration dashboard form."""
     message = request.args.get("message")
+    error_msg = request.args.get("error_msg")
     current_chat_id = get_secret("TELEGRAM_ADMIN_CHAT_ID")
     
     whitelist_str = get_secret("WHITELISTED_TENTACLES") or "{}"
@@ -445,6 +452,7 @@ def index():
     return render_template_string(
         HTML_TEMPLATE, 
         message=message, 
+        error_msg=error_msg,
         quarantined_files=plugin_registry.quarantined, 
         current_chat_id=current_chat_id,
         whitelisted_files=whitelisted_files
@@ -543,14 +551,16 @@ def login_drive():
     """Initiate Google Drive OAuth2 flow."""
     client_secret_path = os.path.join(os.path.dirname(__file__), '..', 'client_secrets.json')
     if not os.path.exists(client_secret_path):
-        return redirect(url_for('index', message="Error: client_secrets.json missing in root directory. Please download it from Google Cloud Console."))
+        return redirect(url_for('index', error_msg="Error: client_secrets.json missing in root directory. Please download it from Google Cloud Console."))
         
     flow = Flow.from_client_secrets_file(
         client_secret_path, 
         scopes=['https://www.googleapis.com/auth/drive.file']
     )
     flow.redirect_uri = 'http://localhost:5000/callback'
-    auth_url, _ = flow.authorization_url(prompt='consent')
+    auth_url, state = flow.authorization_url(prompt='consent')
+    session['state'] = state
+    session['code_verifier'] = flow.code_verifier
     return redirect(auth_url)
 
 @app.route("/callback", methods=["GET"])
@@ -558,14 +568,21 @@ def oauth_callback():
     """OAuth redirect endpoint to catch the code and save credentials."""
     client_secret_path = os.path.join(os.path.dirname(__file__), '..', 'client_secrets.json')
     if not os.path.exists(client_secret_path):
-        return redirect(url_for('index', message="Error: client_secrets.json missing."))
+        return redirect(url_for('index', error_msg="Error: client_secrets.json missing."))
         
+    state = session.get('state')
+    
     try:
         flow = Flow.from_client_secrets_file(
             client_secret_path, 
-            scopes=['https://www.googleapis.com/auth/drive.file']
+            scopes=['https://www.googleapis.com/auth/drive.file'],
+            state=state
         )
         flow.redirect_uri = 'http://localhost:5000/callback'
+        
+        # Restore the PKCE code verifier
+        flow.code_verifier = session.get('code_verifier')
+        
         flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
         
@@ -573,7 +590,7 @@ def oauth_callback():
         set_secret("GOOGLE_DRIVE_CREDS", creds.to_json())
         return redirect(url_for('index', message="Google Drive connected successfully! (Credentials securely saved)"))
     except Exception as e:
-        return redirect(url_for('index', message=f"OAuth Failed: {str(e)}"))
+        return redirect(url_for('index', error_msg=f"OAuth Failed: {str(e)}"))
 
 def start_server(port=5000):
     """Run Flask in a daemon thread so it doesn't block the main application."""
