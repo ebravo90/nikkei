@@ -53,9 +53,14 @@ class Tentacle(ABC):
         """
         Wrapper around the abstract implementation to enforce security hooks.
         """
+        bypass_token = kwargs.pop("bypass_token", None)
+        
         if self.requires_approval:
             # RCE Safeguards triggered
-            approved = require_interactive_approval(f"Executing Tentacle: {self.tool_name} with args {kwargs}")
+            approved = require_interactive_approval(
+                f"Executing Tentacle: {self.tool_name} with args {kwargs}",
+                bypass_token=bypass_token
+            )
             if not approved:
                 return {
                     "status": "rejected",

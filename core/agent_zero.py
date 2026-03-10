@@ -3,12 +3,14 @@ Agente Cero (The Router) for Project Nikkei.
 Powered by Tier 1. It receives the natural language prompt, uses Function Calling 
 against the loaded Registry, and routes the payload to either a Tentacle or a Neuron.
 """
+import uuid
 from typing import Dict, Any
 
 from pydantic import ValidationError
 
 from core.registry import plugin_registry
 from core.llm_gateway import Tier1LLM
+from core.security import SecurityApprovalRequired, approved_action_tokens
 
 
 class AgentZero:
@@ -67,6 +69,13 @@ class AgentZero:
                     "args": kwargs,
                     "result": result
                 }
+            except SecurityApprovalRequired as req:
+                return {
+                    "status": "pending_approval",
+                    "tool": tool_name,
+                    "kwargs": kwargs,
+                    "message": f"Security Alert: Executing {tool_name}. Do you approve?"
+                }
             except Exception as e:
                 return {"status": "tentacle_error", "tool": tool_name, "error": str(e)}
                 
@@ -97,4 +106,28 @@ class AgentZero:
             except Exception as e:
                 return {"status": "neuron_error", "tool": tool_name, "error": str(e)}
 
-        return {"status": "unmatched", "tool": tool_name, "message": "Tool not found in registry."}
+
+    def process_direct(self, tool_name: str, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """Bypass LLM parsing and directly invoke a known tool (e.g., after approval)"""
+        import core.security
+        
+        # Generate a thread-safe single-use bypass token
+        bypass_token = str(uuid.uuid4())
+        core.security.approved_action_tokens.add(bypass_token)
+
+        try:
+            tentacle = plugin_registry.get_tentacle(tool_name)
+            if tentacle:
+                # Inject the bypass token into the execution payload
+                kwargs["bypass_token"] = bypass_token
+                
+                if hasattr(tentacle, "execute"):
+                    result = tentacle.execute(**kwargs)
+                else:
+                    result = tentacle(**kwargs)
+                return {"status": "routed_to_tentacle", "tool": tool_name, "args": kwargs, "result": result}
+            return {"status": "unmatched"}
+        except Exception as e:
+            # Revert the token if execution failed before consuming it
+            core.security.approved_action_tokens.discard(bypass_token)
+            return {"status": "tentacle_error", "tool": tool_name, "error": str(e)}

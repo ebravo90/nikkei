@@ -6,6 +6,8 @@ Bridged explicitly into the synchronous AgentZero orchestrator using asyncio to_
 import asyncio
 import logging
 import threading
+import uuid
+import json
 from typing import Any
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -30,9 +32,8 @@ class TelegramAdapter(ChatInterface):
         self.application = None
         self._loop = None
         
-        # Concurrency primitives for RCE Safeguards / Approvals
-        self._approval_event = threading.Event()
-        self._approval_result = False
+        # State memory for interactive remote approvals
+        self.pending_approvals = {}
         
         # Override the global fallback with our async interactive block
         core.security.require_interactive_approval = self.ask_for_approval
@@ -66,14 +67,36 @@ class TelegramAdapter(ChatInterface):
         try:
             result = await asyncio.to_thread(self.agent.process_prompt, text)
             
-            # Extract basic result fields to format nicely
             status = result.get('status', 'unknown')
+            
+            # Interactive Approval Interception
+            if status == "pending_approval":
+                action_id = str(uuid.uuid4())
+                self.pending_approvals[action_id] = {
+                    "tool": result.get("tool"),
+                    "kwargs": result.get("kwargs", {})
+                }
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton("✅ Approve", callback_data=f"approve:{action_id}"),
+                        InlineKeyboardButton("❌ Reject", callback_data=f"reject:{action_id}")
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                await update.message.reply_text(
+                    f"⚠️ **{result.get('message', 'Approval Required')}**\n\n```json\n{json.dumps(result.get('kwargs', {}), indent=2)}\n```",
+                    reply_markup=reply_markup,
+                    parse_mode='Markdown'
+                )
+                return
+
             final_response = f"**Execution Matrix ({status})**\n\n"
             
             if 'manager_report' in result:
                 final_response += result['manager_report']
             elif 'result' in result:
-                import json
                 final_response += f"```json\n{json.dumps(result['result'], indent=2)}\n```"
             else:
                 final_response += str(result)
@@ -93,13 +116,37 @@ class TelegramAdapter(ChatInterface):
         if not self._is_authorized_user(user_id):
             return
 
-        print(f"[TelegramAdapter] RCE Callback Received: {query.data}")
-        # Resolve the concurrency block
-        self._approval_result = (query.data == "approve")
-        self._approval_event.set()
+        data_parts = query.data.split(':')
+        action = data_parts[0]
+        action_id = data_parts[1] if len(data_parts) > 1 else None
         
-        response_text = "Action Approved ✅" if self._approval_result else "Action Rejected ❌"
-        await query.edit_message_text(text=response_text)
+        if action == "approve" and action_id in self.pending_approvals:
+            payload = self.pending_approvals.pop(action_id)
+            await query.edit_message_text(text="Action Approved ✅. Executing...")
+            
+            try:
+                # Forcefully execute bypassing the RCE block
+                result = await asyncio.to_thread(
+                    self.agent.process_direct, payload["tool"], payload["kwargs"]
+                )
+                
+                status = result.get('status', 'unknown')
+                final_response = f"**Execution Matrix ({status})**\n\n"
+                if 'result' in result:
+                    final_response += f"```json\n{json.dumps(result['result'], indent=2)}\n```"
+                else:
+                    final_response += str(result)
+                    
+                await query.message.reply_text(final_response[:4000], parse_mode='Markdown')
+                
+            except Exception as e:
+                await query.message.reply_text(f"⚠️ **Execution Failed**\n{e}")
+                
+        elif action == "reject" and action_id in self.pending_approvals:
+            self.pending_approvals.pop(action_id)
+            await query.edit_message_text(text="Action Rejected ❌.")
+        else:
+            await query.edit_message_text(text="⚠️ Action expired or invalid.")
 
     def start_listening(self) -> None:
         """
@@ -131,39 +178,10 @@ class TelegramAdapter(ChatInterface):
 
     def ask_for_approval(self, action_description: str) -> bool:
         """
-        Sends an inline keyboard [Approve] / [Reject] to the user asynchronously,
-        but completely halts the yielding Thread execution loop until resolution.
+        Legacy fallback if the Thread is not bridging context properly, 
+        or if tests interact via CLI Mock modes. Since SecurityException pushes 
+        state back up to the router, this method is fundamentally a local 
+        safety wrapper now.
         """
-        print(f"[TelegramAdapter] RCE Safeguard Blocking Thread: {action_description}")
-        
-        self._approval_event.clear()
-        self._approval_result = False
-        
-        if self._loop and self.application and self.application.bot:
-            # Inject interactive elements into the active event loop
-            keyboard = [
-                [
-                    InlineKeyboardButton("✅ Approve", callback_data="approve"),
-                    InlineKeyboardButton("❌ Reject", callback_data="reject"),
-                ]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            asyncio.run_coroutine_threadsafe(
-                self.application.bot.send_message(
-                    chat_id=self.admin_chat_id,
-                    text=f"⚠️ **RCE/Destructive Action Requested**\n\n```\n{action_description}\n```\nDo you want to proceed?",
-                    reply_markup=reply_markup,
-                    parse_mode='Markdown'
-                ),
-                self._loop
-            )
-        else:
-            # Fallback if loop died
-            response = input(f"Telegram (Mock) - Approve action? '{action_description}' [y/N]: ")
-            return response.strip().lower() in ['y', 'yes', 'approve']
-
-        # Block the Tentacle thread execution exclusively until admin selects callback
-        self._approval_event.wait(timeout=180) # 3 Min TTL
-        
-        return self._approval_result
+        response = input(f"Terminal (Fallback) - Approve action? '{action_description}' [y/N]: ")
+        return response.strip().lower() in ['y', 'yes', 'approve']
