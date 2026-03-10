@@ -31,3 +31,10 @@ Thumbs.db
 build/
 dist/
 *.egg-info/
+
+# ---------------------------------------------------
+# Secrets, Credentials, and API Keys
+# ---------------------------------------------------
+client_secrets.json
+token.json
+credentials.json
