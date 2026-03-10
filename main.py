@@ -9,6 +9,7 @@ from pprint import pprint
 from core.registry import plugin_registry
 from core.agent_zero import AgentZero
 from core.security import get_secret
+from core.watcher import start_watchdog
 from adapters.chat.telegram import TelegramAdapter
 from ui.oauth_server import start_server
 from ui.tray_app import start_tray_app
