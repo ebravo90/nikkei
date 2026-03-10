@@ -3,7 +3,6 @@ System Command Tentacle for Project Nikkei.
 Executes arbitrary local OS commands enforcing shell=False validation.
 """
 import shlex
-import subprocess
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 

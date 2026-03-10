@@ -10,7 +10,7 @@ from pydantic import ValidationError
 
 from core.registry import plugin_registry
 from core.llm_gateway import Tier1LLM
-from core.security import SecurityApprovalRequired, approved_action_tokens
+from core.security import SecurityApprovalRequired
 
 
 class AgentZero:
@@ -69,7 +69,7 @@ class AgentZero:
                     "args": kwargs,
                     "result": result
                 }
-            except SecurityApprovalRequired as req:
+            except SecurityApprovalRequired:
                 return {
                     "status": "pending_approval",
                     "tool": tool_name,

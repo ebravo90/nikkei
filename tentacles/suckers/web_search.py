@@ -3,7 +3,7 @@ Web Search Sucker for Project Nikkei.
 Uses Tier2LLM (Gemini 2.5 Pro) with Google Search Grounding to extract structured JSON data from the live web.
 """
 import json
-from typing import Any, Dict
+from typing import Any
 from tentacles.base import Sucker
 from core.llm_gateway import Tier2LLM
 
