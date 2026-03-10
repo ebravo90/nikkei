@@ -55,17 +55,28 @@ def verify_signature(payload: str, signature: str) -> bool:
         return False
 
 
-def require_interactive_approval(action_description: str) -> bool:
+# In-memory store for approved action tokens (UUIDs)
+# This replaces the dangerous global lambda monkey-patch
+approved_action_tokens = set()
+
+class SecurityApprovalRequired(Exception):
+    def __init__(self, action_description):
+        self.action_description = action_description
+        super().__init__(self.action_description)
+
+def require_interactive_approval(action_description: str, bypass_token: str = None) -> bool:
     """
     RCE Safeguard: Any destructive or mutative action MUST trigger 
-    an interactive [Approve] / [Reject] button in the Chat Adapter.
-    For local or fallback modes, we use an interactive terminal prompt.
+    an interactive approval. Instead of blocking with input(), we throw
+    an exception to pause execution and let the orchestrator issue an async prompt.
     """
-    print(f"\n[SECURITY ALERT] Destructive or Mutative Action Requested:")
-    print(f"Action: {action_description}")
-    # In production, this hooks into the UI/Chat Adapter.
-    response = input("Do you approve this action? [Approve/Reject]: ").strip().lower()
-    return response in ["approve", "y", "yes"]
+    if bypass_token and bypass_token in approved_action_tokens:
+        print(f"[SECURITY] Action auto-approved via valid bypass token.")
+        # We consume the token so it can't be reused (Replay Attack prevention)
+        approved_action_tokens.remove(bypass_token)
+        return True
+        
+    raise SecurityApprovalRequired(action_description)
 
 
 def safe_execute(command: list[str]) -> subprocess.CompletedProcess:
