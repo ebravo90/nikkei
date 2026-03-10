@@ -84,6 +84,22 @@ def main():
         if bot_token:
             print("[Nikkei OS] Telegram credentials found. Booting Chat Adapter...")
             try:
+                admin_id = get_secret("TELEGRAM_ADMIN_CHAT_ID")
+                if admin_id:
+                    import socket
+                    import platform
+                    import requests
+                    
+                    try:
+                        msg = (f"🟢 <b>Nikkei Node Online</b>\n"
+                               f"🖥️ <b>Host:</b> {socket.gethostname()}\n"
+                               f"📍 <b>OS:</b> {platform.system()}\n"
+                               f"📡 <b>Status:</b> Awaiting directives.")
+                        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                        requests.post(url, json={"chat_id": admin_id, "text": msg, "parse_mode": "HTML"}, timeout=5)
+                    except Exception as e:
+                        print(f"[Nikkei OS] Failed to send boot notification: {e}")
+
                 telegram_adapter = TelegramAdapter()
                 # Under normal ptb this would block and listen indefinitely
                 telegram_adapter.start_listening()

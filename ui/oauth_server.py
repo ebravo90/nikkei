@@ -8,7 +8,7 @@ from google_auth_oauthlib.flow import Flow
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-from core.security import set_secret, get_secret
+from core.security import set_secret, get_secret, delete_secret
 from core.registry import plugin_registry
 
 app = Flask(__name__)
@@ -156,6 +156,17 @@ HTML_TEMPLATE = """
             gap: 10px;
         }
         .input-group input { flex-grow: 1; }
+        
+        .connected-card {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
 
         /* Modal Styles */
         .modal {
@@ -216,12 +227,32 @@ HTML_TEMPLATE = """
             
             <div class="form-group">
                 <label for="GEMINI_API_KEY">Gemini API Key</label>
+                {% if gemini_connected %}
+                <div class="connected-card">
+                    <span style="color: var(--success-color);"><i class="fas fa-circle"></i> Connected</span>
+                    <form action="/revoke_secret" method="POST" style="margin:0; display:inline;">
+                        <input type="hidden" name="secret_key" value="GEMINI_API_KEY">
+                        <button type="submit" class="btn-danger" style="padding: 5px 10px; font-size: 0.8em;"><i class="fas fa-unlink"></i> Disconnect</button>
+                    </form>
+                </div>
+                {% else %}
                 <input type="password" id="GEMINI_API_KEY" name="GEMINI_API_KEY" placeholder="AIzaSy...">
+                {% endif %}
             </div>
 
             <div class="form-group">
                 <label for="TELEGRAM_BOT_TOKEN">Telegram Bot Token</label>
+                {% if telegram_connected %}
+                <div class="connected-card">
+                    <span style="color: var(--success-color);"><i class="fas fa-circle"></i> Connected</span>
+                    <form action="/revoke_secret" method="POST" style="margin:0; display:inline;">
+                        <input type="hidden" name="secret_key" value="TELEGRAM_BOT_TOKEN">
+                        <button type="submit" class="btn-danger" style="padding: 5px 10px; font-size: 0.8em;"><i class="fas fa-unlink"></i> Disconnect</button>
+                    </form>
+                </div>
+                {% else %}
                 <input type="password" id="TELEGRAM_BOT_TOKEN" name="TELEGRAM_BOT_TOKEN" placeholder="123456789:ABCdefGHIjklMNOpqrSTUvwxYZ">
+                {% endif %}
                 <a class="help-link" href="https://github.com/your-org/project-nikkei#how-to-create-the-telegram-bot-for-beginners" target="_blank">
                     <i class="fas fa-question-circle"></i> How to get this token?
                 </a>
@@ -295,7 +326,17 @@ HTML_TEMPLATE = """
                         <label for="DAAQ_SECRET_KEY">DaaQ Secret Key (HMAC)</label>
                         <input type="password" id="DAAQ_SECRET_KEY" name="DAAQ_SECRET_KEY" placeholder="Local symmetric key for Drive-as-a-Queue">
                     </div>
+                    {% if gdrive_connected %}
+                    <div class="connected-card" style="margin-top: 10px; font-size: 0.9em;">
+                        <span style="color: var(--success-color);"><i class="fas fa-circle"></i> Connected to Drive</span>
+                        <form action="/revoke_secret" method="POST" style="margin:0; display:inline;">
+                            <input type="hidden" name="secret_key" value="GOOGLE_DRIVE_CREDS">
+                            <button type="submit" class="btn-danger" style="padding: 5px 10px; font-size: 0.8em;"><i class="fas fa-unlink"></i> Revoke</button>
+                        </form>
+                    </div>
+                    {% else %}
                     <a href="/login_drive" class="oauth-btn" style="color: white; padding: 10px 15px; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: bold; margin-top: 10px;"><i class="fab fa-google-drive"></i> Connect Google Drive</a>
+                    {% endif %}
                     <button type="submit" style="margin-top: 10px;"><i class="fas fa-save"></i> Save DaaQ Settings</button>
                 </form>
 
@@ -443,6 +484,10 @@ def index():
     error_msg = request.args.get("error_msg")
     current_chat_id = get_secret("TELEGRAM_ADMIN_CHAT_ID")
     
+    gemini_connected = bool(get_secret("GEMINI_API_KEY"))
+    telegram_connected = bool(get_secret("TELEGRAM_BOT_TOKEN"))
+    gdrive_connected = bool(get_secret("GOOGLE_DRIVE_CREDS"))
+    
     whitelist_str = get_secret("WHITELISTED_TENTACLES") or "{}"
     try:
         whitelisted_files = json.loads(whitelist_str)
@@ -455,7 +500,10 @@ def index():
         error_msg=error_msg,
         quarantined_files=plugin_registry.quarantined, 
         current_chat_id=current_chat_id,
-        whitelisted_files=whitelisted_files
+        whitelisted_files=whitelisted_files,
+        gemini_connected=gemini_connected,
+        telegram_connected=telegram_connected,
+        gdrive_connected=gdrive_connected
     )
 
 @app.route("/approve_quarantine", methods=["POST"])
@@ -502,6 +550,19 @@ def revoke_access():
         return redirect(url_for('index', message=f"Successfully revoked access for {filename}."))
         
     return redirect(url_for('index', message=f"Could not find {filename} in whitelist."))
+
+@app.route("/revoke_secret", methods=["POST"])
+def revoke_secret():
+    """Revoke a generic credential from the keyring."""
+    secret_key = request.form.get("secret_key")
+    if secret_key:
+        try:
+            delete_secret(secret_key)
+        except Exception:
+            # Fallback in case keyring delete fails for non-existent key natively
+            set_secret(secret_key, "")
+        return redirect(url_for('index', message=f"Successfully disconnected credential {secret_key}."))
+    return redirect(url_for('index', error_msg="No secret key provided to revoke."))
 
 @app.route("/save_token", methods=["POST"])
 def save_token():
