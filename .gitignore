@@ -1,0 +1,33 @@
+# Entornos Virtuales
+venv/
+env/
+.venv/
+.env
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Archivos del Sistema Operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs y Bases de Datos locales
+*.log
+*.sqlite3
+
+# Carpetas de desarrollo IDEs (VS Code, IntelliJ, etc)
+.vscode/
+.idea/
+
+# Directorios de builds y empaquetados
+build/
+dist/
+*.egg-info/
