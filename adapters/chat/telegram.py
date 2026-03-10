@@ -8,6 +8,7 @@ import logging
 import threading
 import uuid
 import json
+import html
 from typing import Any
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -86,24 +87,25 @@ class TelegramAdapter(ChatInterface):
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
                 await update.message.reply_text(
-                    f"⚠️ **{result.get('message', 'Approval Required')}**\n\n```json\n{json.dumps(result.get('kwargs', {}), indent=2)}\n```",
+                    f"⚠️ <b>{html.escape(str(result.get('message', 'Approval Required')))}</b>\n\n<pre>{html.escape(json.dumps(result.get('kwargs', {}), indent=2))}</pre>",
                     reply_markup=reply_markup,
-                    parse_mode='Markdown'
+                    parse_mode='HTML'
                 )
                 return
 
-            final_response = f"**Execution Matrix ({status})**\n\n"
+            final_response = f"<b>Execution Matrix ({html.escape(status)})</b>\n\n"
             
             if 'manager_report' in result:
-                final_response += result['manager_report']
+                # Assuming manager_report is plain text or we accept it as is (if it had markdown, it would render raw, but it's safer escaped)
+                final_response += html.escape(str(result['manager_report']))
             elif 'result' in result:
-                final_response += f"```json\n{json.dumps(result['result'], indent=2)}\n```"
+                final_response += f"<pre>{html.escape(json.dumps(result['result'], indent=2))}</pre>"
             else:
-                final_response += str(result)
+                final_response += html.escape(str(result))
                 
-            await update.message.reply_text(final_response[:4000], parse_mode='Markdown')
+            await update.message.reply_text(final_response[:4000], parse_mode='HTML')
         except Exception as e:
-            await update.message.reply_text(f"⚠️ **Router Fatal Exception**\n{e}")
+            await update.message.reply_text(f"⚠️ <b>Router Fatal Exception</b>\n<pre>{html.escape(str(e))}</pre>", parse_mode='HTML')
 
     async def _handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -131,16 +133,16 @@ class TelegramAdapter(ChatInterface):
                 )
                 
                 status = result.get('status', 'unknown')
-                final_response = f"**Execution Matrix ({status})**\n\n"
+                final_response = f"<b>Execution Matrix ({html.escape(status)})</b>\n\n"
                 if 'result' in result:
-                    final_response += f"```json\n{json.dumps(result['result'], indent=2)}\n```"
+                    final_response += f"<pre>{html.escape(json.dumps(result['result'], indent=2))}</pre>"
                 else:
-                    final_response += str(result)
+                    final_response += html.escape(str(result))
                     
-                await query.message.reply_text(final_response[:4000], parse_mode='Markdown')
+                await query.message.reply_text(final_response[:4000], parse_mode='HTML')
                 
             except Exception as e:
-                await query.message.reply_text(f"⚠️ **Execution Failed**\n{e}")
+                await query.message.reply_text(f"⚠️ <b>Execution Failed</b>\n<pre>{html.escape(str(e))}</pre>", parse_mode='HTML')
                 
         elif action == "reject" and action_id in self.pending_approvals:
             self.pending_approvals.pop(action_id)
