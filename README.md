@@ -1,1 +1,120 @@
-# Project Nikkei OS \n\n**A local-first, Zero-Trust AI OS Agent** that securely connects your local machine to Cloud integrations (Google Drive) and allows remote execution via Telegram with interactive RCE safeguards.\n\n---\n\n## 🌟 Key Features\n\n* **Telegram Bot Interface:** Control your personal computer securely from your phone.\n* **Zero-Trust RCE (Remote Code Execution):** Employs strict "Interactive Approvals" (The Kill Switch) via Telegram Inline Keyboards to prevent the AI from executing dangerous background bash processes without manual visual sign-off.\n* **Local Keyring Management:** Connects to the host OS credential manager to keep secrets off plaintext config files.\n* **Cross-platform Anti-Sleep:** Ensures background Telegram polling never drops by actively inhibiting OS suspension behaviors natively on Windows, macOS, and Linux.\n* **DAAQ (Data Acquisition as a Queue):** Synchronizes dynamic payload workflows leveraging Google Drive OAuth2 integration.\n\n---\n\n## 🚀 Installation\n\n**1. Clone the repository:**\n```bash\ngit clone https://github.com/ebravo90/nikkei\ncd nikkei\n```\n\n**2. Create a Virtual Environment:**\n```bash\npython3 -m venv venv\nsource venv/bin/activate  # On Windows, use `venv\\Scripts\\activate`\n```\n\n**3. Install in Editable Mode:**\n```bash\npip install -e .\n```\n\n---\n\n## ⚙️ Configuration Guide\n\nProject Nikkei relies heavily on two main integrations: a Telegram Bot (for communication) and Google Drive (for remote data payload acquisition). These must be configured properly in the local Host UI.\n\n### Telegram Bot Configuration\n1. Open Telegram and search for [@BotFather](https://t.me/botfather).\n2. Send the `/newbot` command and follow the setup instructions to acquire your **Bot Token**.\n3. Search for a generic user ID bot (like [@userinfobot](https://t.me/userinfobot)) to retrieve your personal **User ID** (this will be the Admin ID authorized to communicate with Nikkei).\n\n### Google Drive DAAQ Configuration\n1. Go to the [Google Cloud Console](https://console.cloud.google.com/).\n2. Create a new Project and enable the **Google Drive API**.\n3. Navigate to **APIs & Services > Credentials**.\n4. Click **Create Credentials > OAuth client ID**.\n5. Select **Desktop App** as the Application Type.\n6. Download the generated JSON credentials file.\n7. Rename the downloaded file strictly to `client_secrets.json` and place it in the root directory of your cloned `nikkei/` project.\n\n---\n\n## 💻 Running the OS\n\nTo boot Project Nikkei OS, ensure your virtual environment is activated and execute the main bootloader:\n\n```bash\npython main.py\n```\n\n> 💡 **First Boot Configuration:**\n> If this is your first time starting Nikkei, the system will gracefully launch its background services and wait for configuration.\n> Open your browser and navigate to the local Web UI at **[http://localhost:5000](http://localhost:5000)**.\n> Input your **Gemini API Key**, the **Telegram Token**, your **Admin ID**, and click "Connect Google Drive" to finalize your OAuth DAAQ authentication loop.\n\nOnce configured, Nikkei OS is fully autonomous, routing your chat prompts through the `AgentZero` engine and orchestrating your `Tentacles` safely behind the interactive whitelist!
+ nikkai
+AI automation and task orchestration
+<div align="center">
+  <img src="https://img.icons8.com/nolan/256/processor.png" alt="Nikkei OS Logo" width="120">
+  <h1>Project Nikkei</h1>
+  <p><b>Local Autonomous Agent OS</b></p>
+  <p><i>A lightweight, zero-trust autonomous agent operating system designed for secure, headless execution environments.</i></p>
+</div>
+
+---
+
+Project Nikkei bridges the gap between powerful Large Language Models and grounded, local system execution. It provides a robust framework for agentic workflows, complex orchestration, and reliable system administration. 
+
+Through its unique biological architecture and strict security paradigms, Nikkei allows you to deploy self-healing, locally executed agents that can interact with the host system safely, even in hostile or disconnected network conditions. 
+
+## 🧬 Core Architecture (The Anatomy)
+
+Nikkei is built upon a component-driven pattern of "Composition over Inheritance," adopting a biological naming convention to represent the varying degrees of abstraction and autonomy within the agent layer.
+
+* 🧠 **Neurons (Orchestrators):** Complex, stateful agents. Neurons manage multi-step workflows, long-running processes, multi-agent routing, and Software Development Life Cycle (SDLC) logic. They maintain context and drive the high-level objectives.
+* 🐙 **Tentacles (Executors):** The muscle. These are atomic, stateless, system-level execution functions. A Tentacle represents a physical action taken upon the host system or network (e.g., executing a bash command, modifying a file, or starting a container).
+* 🧲 **Suckers (Extractors):** The suction wrappers. A Sucker is an encapsulated, grounded data extraction primitive that powers a Tentacle. Utilizing Live Web Search and function calling, Suckers pull verified, real-time data into the execution loop before the Tentacle strikes.
+
+---
+
+## 🛡️ Key Features
+
+Nikkei prioritizes security and reliability above all else, ensuring that LLM hallucinations never result in catastrophic local system compromises.
+
+* **Zero-Trust Security Engine:** Every action is verified. Actions requiring system access pass through an integrated **AST Scanner** and **SHA-256 Hashing engine**. Modified or unauthorized tentacles are immediately localized into Quarantine, requiring explicit cryptographic approval.
+* **DaaQ (Drive-as-a-Queue):** True headless Peer-to-Peer communication. DaaQ leverages ubiquitous cloud storage (Google Drive, Dropbox) as secure, offline message queues. This bypasses traditional firewalls and allows remote agent orchestration without exposing local ports.
+* **Dual-Tier LLM Gateway:** Optimized routing.
+  * *Tier 1 (Gemini 2.5 Flash):* Fast, efficient function-calling router for tool selection.
+  * *Tier 2 (Gemini 2.5 Pro):* Complex reasoning and live Google Search Grounding for high-fidelity data extraction.
+* **Developer SDET Sandbox:** The `nikkei test` CLI acts as an isolated Developer Experience (DX) environment. Test and validate Tentacle schemas and execution logic offline, cost-free, without invoking the primary orchestrator.
+
+---
+
+## � Configuration & Setup Guides
+
+### 1. 📱 Telegram Bot Setup (The Neurological Link)
+Project Nikkei uses Telegram as its encrypted communication terminal. To establish the host connection, you must provision a private Bot:
+
+1. **Open Telegram** and search for **`@BotFather`** (ensure it has the official blue verification checkmark ✅).
+2. Start the chat and send the **`/newbot`** command.
+3. Provide a display name (e.g., `Nikkei Core`) and a unique programmatic username ending in "bot" (e.g., `Nikkei_Host_01_bot`).
+4. Upon creation, @BotFather will grant you a **Telegram Bot Token** (e.g., `1234567890:AAH_xyz123abc456...`). **Guard this token fiercely.** It is the cryptographic key to your machine.
+5. In the local **Nikkei OS Settings** Dashboard, paste this token. Click **"Auto-Detect My ID"** and send any message to your new bot to complete the neurological handshake.
+
+### 2. 🛡️ Zero-Trust RCE (The Kill Switch & Quarantine)
+Nikkei operates under a strict Zero-Trust execution paradigm to prevent rogue LLM hallucinations or malicious injections.
+
+* **The AST Sandbox:** Whenever a new Tentacle is created or modified, the internal AST Scanner hashes its signature and intercepts execution. Untrusted code is immediately dumped into the Quarantine layer.
+* **Manual Verification:** Before any sandboxed code can execute upon your system, you must physically authorize it. 
+* **Approval Methods:** You can clear the Quarantine manifest visually via the local UI Dashboard, or directly from the terminal using the physical presence CLI command: `nikkei quarantine approve <tentacle_name.py>`. Without clearance, the execution pipeline remains severed.
+
+### 3. ☁️ DAAQ (Drive-as-a-Queue) Setup
+For true headless peering, Nikkei utilizes **DAAQ**—leveraging Google Drive's OAuth2 API as an offline, firewall-bypassing message queue.
+
+1. **Provision Credentials:** Log into the [Google Cloud Console](https://console.cloud.google.com/) and create a new project with the Google Drive API enabled.
+2. **Download Secret:** Generate an OAuth 2.0 Client ID for a Desktop Application. Download the resulting JSON file and rename it strictly to `client_secrets.json`.
+3. **Implant the Secret:** Place `client_secrets.json` directly into the root directory of your Nikkei repository.
+4. **Authorize the Connection:** Boot the Nikkei UI Dashboard and navigate to the DAAQ settings. Initialize the OAuth flow to grant the Agent offline read/write access. Once linked, the local Node can bi-directionally sync telemetry and directives without exposing any network ports.
+
+---
+
+## 🚀 Quick Start & Installation
+
+Project Nikkei is designed for rapid deployment as a global system alias.
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-org/project-nikkei.git
+   cd project-nikkei
+   ```
+
+2. **Install globally (Development Mode):**
+   ```bash
+   pip install -e .
+   ```
+   *This links the source directory to your Python environment and exposes the `nikkei` CLI globally. It installs all modern dependencies including `google-genai` and `watchdog`.*
+
+3. **Boot the OS:**
+   ```bash
+   nikkei run
+   ```
+   *(Or just `python main.py`)*
+
+---
+
+## 💻 CLI Usage
+
+The headless Developer Harness provides complete control over the Nikkei OS without requiring a Graphical User Interface. 
+
+**Vitals & Telemetry**
+View the current status of the Agent, Chat Adapters, and local Nodes:
+```bash
+nikkei status
+```
+
+**Zero-Trust Security Management**
+Manage the AST File Quarantine directly from the terminal. 
+*List quarantined and approved tools:*
+```bash
+nikkei quarantine list
+```
+*Approve a secure tool for execution (Warning: Requires a forced 5-second physical presence delay):*
+```bash
+nikkei quarantine approve <filename.py>
+```
+
+**SDET Sandbox Testing**
+Validate an atomic tool using mocked JSON arguments, bypassing the LLM Gateway:
+```bash
+nikkei test my_tentacle --mock-args '{"target": "localhost"}'
+```
+
+---
+
+*Project Nikkei — Advanced Agentic Control Patterns.*
