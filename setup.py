@@ -20,6 +20,7 @@ setup(
         "google-auth-oauthlib",
         "google-genai",
         "watchdog",
+        "plyer",
     ],
     entry_points={
         "console_scripts": [
