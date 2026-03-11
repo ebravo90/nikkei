@@ -71,6 +71,13 @@ class Tier1LLM(LLMProvider):
                 "kwargs": parsed.get("kwargs", {})
             }
         except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
+                print("[Tier1 Error] Rate Limit / Quota Exhausted.")
+                return {
+                    "tool": "sys_cmd",
+                    "kwargs": {"command": "echo 'Patrón, se terminaron los 20 pesos del Gemini (API Quota Exhausted). Please wait for the rate limit to reset or configure a fallback LLM.'"}
+                }
             print(f"[Tier1 Error] {e}")
             return {
                 "tool_name": None,
@@ -117,6 +124,13 @@ class Tier2LLM(LLMProvider):
                 "status": "success"
             }
         except Exception as e:
+            error_str = str(e).lower()
+            if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
+                print("[Tier2 Error] Rate Limit / Quota Exhausted.")
+                return {
+                    "response": "Patrón, se terminaron los 20 pesos del Gemini (API Quota Exhausted). Please wait for the rate limit to reset or configure a fallback LLM.",
+                    "status": "error"
+                }
             print(f"[Tier2 Error] {e}")
             return {
                 "response": str(e),

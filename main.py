@@ -89,11 +89,13 @@ def main():
                     import socket
                     import platform
                     import requests
+                    from datetime import datetime
                     
                     try:
                         msg = (f"🟢 <b>Nikkei Node Online</b>\n"
                                f"🖥️ <b>Host:</b> {socket.gethostname()}\n"
                                f"📍 <b>OS:</b> {platform.system()}\n"
+                               f"🕒 <b>Boot Time:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                                f"📡 <b>Status:</b> Awaiting directives.")
                         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
                         requests.post(url, json={"chat_id": admin_id, "text": msg, "parse_mode": "HTML"}, timeout=5)
