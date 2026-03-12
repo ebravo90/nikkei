@@ -29,6 +29,13 @@ class AgentZero:
         # 2. Invoke Tier 1 LLM with Function Calling payload
         routing_decision = self.router_llm.generate(prompt, tools=schemas)
         
+        # Intercept explicit system errors (e.g., 429 Quota Exhausted)
+        if routing_decision.get("status") == "system_error":
+            return {
+                "status": "success",
+                "result": routing_decision.get("message")
+            }
+        
         tool_name = routing_decision.get("tool_name")
         kwargs = routing_decision.get("kwargs", {})
         
