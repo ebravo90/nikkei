@@ -25,7 +25,8 @@ def initialize_system():
     plugin_registry.load_neurons()
     
     loaded_tools = plugin_registry.get_all_tool_schemas()
-    print(f"[Nikkei OS] Registry initialized. Loaded {len(loaded_tools)} tools.")
+    tool_names = list(plugin_registry.tentacles.keys()) + list(plugin_registry.neurons.keys())
+    print(f"[Nikkei OS] Registry initialized. Loaded {len(loaded_tools)} tools: {tool_names}")
     
     # 2. Instantiate the Router
     agent_zero = AgentZero()
