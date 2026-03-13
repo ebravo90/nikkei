@@ -62,6 +62,12 @@ For true headless peering, Nikkei utilizes **DAAQ**—leveraging Google Drive's 
 3. **Implant the Secret:** Place `client_secrets.json` directly into the root directory of your Nikkei repository.
 4. **Authorize the Connection:** Boot the Nikkei UI Dashboard and navigate to the DAAQ settings. Initialize the OAuth flow to grant the Agent offline read/write access. Once linked, the local Node can bi-directionally sync telemetry and directives without exposing any network ports.
 
+### 4. 🛰️ Fleet Management Radar
+The Fleet Radar provides a real-time DaaQ (Drive-as-a-Queue) telemetry heartbeat to monitor all your distributed Nikkei nodes.
+* **Heartbeat:** Every 3 minutes, each active node uploads a lightweight JSON payload (`[NODE_ID]_heartbeat.json`) to the secure Google Drive folder.
+* **Radar UI:** The central Web Dashboard aggregates these heartbeats natively. Nodes that have checked in within the last 5 minutes are displayed as `🟢 Online`. If a node misses its check-in interval, its status gracefully degrades to `🔴 Offline`.
+* **Zero-Port Telemetry:** Because state is synchronized via Google's REST API, you can monitor an entire global fleet of physical machines without exposing a single inbound network port.
+
 ---
 
 ## 🚀 Quick Start & Installation

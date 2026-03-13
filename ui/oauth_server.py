@@ -331,6 +331,31 @@ HTML_TEMPLATE = """
 
         <hr>
 
+        <h2><i class="fas fa-satellite-dish"></i> Fleet Management Radar</h2>
+        <p>Real-time DaaQ telemetry monitoring all distributed Nikkei nodes.</p>
+        {% if gdrive_connected %}
+            {% if fleet_status %}
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-top: 15px;">
+                {% for node in fleet_status %}
+                    <div class="connected-card" style="border-color: {% if node.is_online %}var(--success-color){% else %}var(--error-color){% endif %}; padding: 15px; text-align: left;">
+                        <strong><i class="fas fa-microchip"></i> {{ node.node_id }}</strong><br>
+                        <small><i class="fas fa-desktop"></i> OS: {{ node.os }}</small><br>
+                        <span style="color: {% if node.is_online %}var(--success-color){% else %}var(--error-color){% endif %}; font-weight: bold;">
+                            {% if node.is_online %}<i class="fas fa-circle" style="font-size: 0.8em;"></i> Online{% else %}<i class="fas fa-circle-notch" style="font-size: 0.8em;"></i> Offline{% endif %}
+                        </span><br>
+                        <small style="color: gray;">Last seen: {{ node.last_seen_display }}</small>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <p style="color: gray; font-style: italic;"><i class="fas fa-search"></i> No telemetry beacons detected in DaaQ yet.</p>
+            {% endif %}
+        {% else %}
+            <p style="color: var(--error-color);"><i class="fas fa-exclamation-triangle"></i> DaaQ (Google Drive) must be connected to use Fleet Radar.</p>
+        {% endif %}
+
+        <hr>
+
         <h2><i class="fas fa-user-secret"></i> Zero-Trust Debug Mode</h2>
         <p>Enable cross-platform native OS notifications for every agent action. Provides strict execution transparency.</p>
         {% if debug_mode_active %}
@@ -559,7 +584,39 @@ def index():
         whitelisted_files = json.loads(whitelist_str)
     except json.JSONDecodeError:
         whitelisted_files = {}
+
+    fleet_status = []
+    if gdrive_connected:
+        from adapters.queue.gdrive import GDriveQueueAdapter
+        from datetime import datetime, timezone
         
+        try:
+            gdrive = GDriveQueueAdapter()
+            if gdrive.service:
+                query = "name contains '_heartbeat.json' and trashed=false"
+                results = gdrive.service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+                items = results.get('files', [])
+                
+                for item in items:
+                    try:
+                        content = gdrive.service.files().get_media(fileId=item['id']).execute()
+                        heartbeat = json.loads(content)
+                        last_seen_str = heartbeat.get('last_seen_utc')
+                        # Python 3.7+ standard ISO parser
+                        last_seen = datetime.fromisoformat(last_seen_str.replace('Z', '+00:00'))
+                        diff = datetime.now(timezone.utc) - last_seen
+                        
+                        heartbeat['is_online'] = diff.total_seconds() < 300 # 5 minutes
+                        heartbeat['last_seen_display'] = last_seen.strftime('%Y-%m-%d %H:%M:%S UTC')
+                        fleet_status.append(heartbeat)
+                    except Exception as e:
+                        print(f"[UI Fleet Radar] Failed to parse heartbeat {item['name']}: {e}")
+        except Exception as e:
+            print(f"[UI Fleet Radar] Failed to fetch telemetry: {e}")
+            
+    # Sort online nodes first, then alphabetical by name
+    fleet_status.sort(key=lambda x: (not x.get('is_online', False), x.get('node_id', '')))
+
     return render_template_string(
         HTML_TEMPLATE, 
         message=message, 
@@ -570,7 +627,8 @@ def index():
         gemini_connected=gemini_connected,
         telegram_connected=telegram_connected,
         gdrive_connected=gdrive_connected,
-        debug_mode_active=debug_mode_active
+        debug_mode_active=debug_mode_active,
+        fleet_status=fleet_status
     )
 
 @app.route("/approve_quarantine", methods=["POST"])
