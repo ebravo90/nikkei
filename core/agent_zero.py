@@ -1,8 +1,5 @@
-"""
-Agente Cero (The Router) for Project Nikkei.
-Powered by Tier 1. It receives the natural language prompt, uses Function Calling 
-against the loaded Registry, and routes the payload to either a Tentacle or a Neuron.
-"""
+"""Agente Cero (The Router) for Project Nikkei.
+Powered by Tier 1. It receives the natural language prompt, uses Function Calling against the loaded Registry, and routes the payload to either a Tentacle or a Neuron."""
 import uuid
 from typing import Dict, Any
 
@@ -10,7 +7,7 @@ from pydantic import ValidationError
 
 from core.registry import plugin_registry
 from core.llm_gateway import Tier1LLM
-from core.security import SecurityApprovalRequired
+from core.security import SecurityApprovalRequired, get_secret
 
 
 class AgentZero:
@@ -56,6 +53,11 @@ class AgentZero:
                         }
                         
                 # 3b. Execute verified arguments
+                debug_mode = get_secret("DEBUG_MODE") == "True"
+                if debug_mode:
+                    from core.notifier import send_os_notification
+                    send_os_notification(title="Nikkei OS Action", message=f"Executing tool: {tool_name}")
+                    
                 # Note: We assume tentacle is our Tentacle base class instance, so we call .execute()
                 # But since we previously mapped it to Callable, let's gracefully call either __call__ or execute
                 if hasattr(tentacle, "execute"):
@@ -120,6 +122,11 @@ class AgentZero:
             if tentacle:
                 # Inject the bypass token into the execution payload
                 kwargs["bypass_token"] = bypass_token
+                
+                debug_mode = get_secret("DEBUG_MODE") == "True"
+                if debug_mode:
+                    from core.notifier import send_os_notification
+                    send_os_notification(title="Nikkei OS Direct Action", message=f"Executing tool: {tool_name} (Approved)")
                 
                 if hasattr(tentacle, "execute"):
                     result = tentacle.execute(**kwargs)

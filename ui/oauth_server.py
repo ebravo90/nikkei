@@ -10,6 +10,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 from core.security import set_secret, get_secret, delete_secret
 from core.registry import plugin_registry
+from core.notifier import send_os_notification
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -208,6 +209,19 @@ HTML_TEMPLATE = """
         </div>
     </div>
 
+    <!-- Debug Mode Modal -->
+    <div id="debugModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-user-secret"></i> Enable Debug Mode</h3>
+            <p>You are about to enable native OS notifications for all background actions.</p>
+            <p><strong>This will auto-disable after 15 minutes. Proceed?</strong></p>
+            <div class="modal-buttons">
+                <button type="button" class="btn" onclick="closeDebugModal()" style="background-color: #666; color: white;"><i class="fas fa-times"></i> Cancel</button>
+                <button type="button" id="confirmDebugBtn" class="btn-danger" onclick="submitDebugMode()"><i class="fas fa-check"></i> Confirm (<span id="debugCountdownText">5</span>)</button>
+            </div>
+        </div>
+    </div>
+
     <button class="theme-toggle" onclick="toggleTheme()" id="themeToggleBtn">
         <i class="fas fa-moon"></i>
     </button>
@@ -313,6 +327,23 @@ HTML_TEMPLATE = """
             </ul>
         {% else %}
             <p style="color: gray; font-style: italic;"><i class="fas fa-info-circle"></i> No items currently whitelisted.</p>
+        {% endif %}
+
+        <hr>
+
+        <h2><i class="fas fa-user-secret"></i> Zero-Trust Debug Mode</h2>
+        <p>Enable cross-platform native OS notifications for every agent action. Provides strict execution transparency.</p>
+        {% if debug_mode_active %}
+        <div class="connected-card" style="border-color: var(--success-color);">
+            <span style="color: var(--success-color);"><i class="fas fa-eye"></i> Ghost Mode Active (Auto-revokes after 15m)</span>
+            <form action="/disable_debug_mode" method="POST" style="margin:0; display:inline;">
+                <button type="submit" class="btn-danger" style="padding: 5px 10px; font-size: 0.8em;"><i class="fas fa-eye-slash"></i> Disable Now</button>
+            </form>
+        </div>
+        {% else %}
+        <form action="/enable_debug_mode" method="POST" id="debugForm">
+            <button type="button" class="btn-danger" onclick="showDebugModal()"><i class="fas fa-eye"></i> Enable Ghost/Debug Mode</button>
+        </form>
         {% endif %}
 
         <details>
@@ -428,6 +459,40 @@ HTML_TEMPLATE = """
             document.getElementById('quarantineForm').submit();
         }
 
+        // Debug Mode Modal
+        let debugCountdownInterval;
+        
+        function showDebugModal() {
+            const modal = document.getElementById('debugModal');
+            const btn = document.getElementById('confirmDebugBtn');
+            const countdownSpan = document.getElementById('debugCountdownText');
+            
+            modal.style.display = 'flex';
+            btn.disabled = true;
+            let count = 5;
+            btn.innerHTML = `<i class="fas fa-check"></i> Confirm (<span id="debugCountdownText">${count}</span>)`;
+            
+            debugCountdownInterval = setInterval(() => {
+                count--;
+                if (count <= 0) {
+                    clearInterval(debugCountdownInterval);
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fas fa-check"></i> Confirm Enable`;
+                } else {
+                    btn.innerHTML = `<i class="fas fa-check"></i> Confirm (<span id="debugCountdownText">${count}</span>)`;
+                }
+            }, 1000);
+        }
+        
+        function closeDebugModal() {
+            document.getElementById('debugModal').style.display = 'none';
+            clearInterval(debugCountdownInterval);
+        }
+        
+        function submitDebugMode() {
+            document.getElementById('debugForm').submit();
+        }
+
         // Auto-Detect Telegram ID
         function autoDetectTelegramId() {
             const btn = document.getElementById('detectBtn');
@@ -487,6 +552,7 @@ def index():
     gemini_connected = bool(get_secret("GEMINI_API_KEY"))
     telegram_connected = bool(get_secret("TELEGRAM_BOT_TOKEN"))
     gdrive_connected = bool(get_secret("GOOGLE_DRIVE_CREDS"))
+    debug_mode_active = get_secret("DEBUG_MODE") == "True"
     
     whitelist_str = get_secret("WHITELISTED_TENTACLES") or "{}"
     try:
@@ -503,7 +569,8 @@ def index():
         whitelisted_files=whitelisted_files,
         gemini_connected=gemini_connected,
         telegram_connected=telegram_connected,
-        gdrive_connected=gdrive_connected
+        gdrive_connected=gdrive_connected,
+        debug_mode_active=debug_mode_active
     )
 
 @app.route("/approve_quarantine", methods=["POST"])
@@ -563,6 +630,51 @@ def revoke_secret():
             set_secret(secret_key, "")
         return redirect(url_for('index', message=f"Successfully disconnected credential {secret_key}."))
     return redirect(url_for('index', error_msg="No secret key provided to revoke."))
+
+def send_telegram_alert(message: str):
+    bot_token = get_secret("TELEGRAM_BOT_TOKEN")
+    admin_id = get_secret("TELEGRAM_ADMIN_CHAT_ID")
+    if bot_token and admin_id:
+        try:
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            requests.post(url, json={"chat_id": admin_id, "text": message, "parse_mode": "HTML"}, timeout=5)
+        except Exception as e:
+            print(f"[UI Telegram Alert Failed]: {e}")
+
+@app.route("/enable_debug_mode", methods=["POST"])
+def enable_debug_mode():
+    """Enable zero-trust debug mode for 15 minutes with a 4-minute heartbeat."""
+    set_secret("DEBUG_MODE", "True")
+    
+    send_os_notification("🚨 Ghost/Debug Mode ENABLED", "System transparency activated.")
+    send_telegram_alert("🚨 <b>SECURITY ALERT:</b> Ghost/Debug Mode was manually enabled on the host machine.")
+    
+    def _ttl_worker():
+        import time
+        for _ in range(3):
+            time.sleep(240)  # 4 minutes
+            if get_secret("DEBUG_MODE") != "True":
+                return
+            send_os_notification("⚠️ Ghost/Debug Mode ACTIVE", "Transparency heartbeat.")
+            send_telegram_alert("⚠️ <b>Reminder:</b> Debug Mode is still ACTIVE.")
+            
+        time.sleep(180) # Remaining 3 minutes
+        if get_secret("DEBUG_MODE") == "True":
+            set_secret("DEBUG_MODE", "False")
+            send_os_notification("✅ Ghost/Debug Mode DISABLED", "TTL expired.")
+            send_telegram_alert("✅ Ghost/Debug Mode has been disabled. System returned to stealth.")
+        
+    threading.Thread(target=_ttl_worker, daemon=True).start()
+    return redirect(url_for('index', message="Ghost/Debug Mode enabled. It will automatically disable after 15 minutes to preserve battery and sanity."))
+
+@app.route("/disable_debug_mode", methods=["POST"])
+def disable_debug_mode():
+    """Manually disable debug mode."""
+    if get_secret("DEBUG_MODE") == "True":
+        set_secret("DEBUG_MODE", "False")
+        send_os_notification("✅ Ghost/Debug Mode DISABLED", "Manual override.")
+        send_telegram_alert("✅ Ghost/Debug Mode has been disabled. System returned to stealth.")
+    return redirect(url_for('index', message="Ghost/Debug Mode disabled."))
 
 @app.route("/save_token", methods=["POST"])
 def save_token():
