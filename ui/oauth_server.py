@@ -10,6 +10,7 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 from core.security import set_secret, get_secret, delete_secret
 from core.registry import plugin_registry
+from core.notifier import send_os_notification
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -630,22 +631,49 @@ def revoke_secret():
         return redirect(url_for('index', message=f"Successfully disconnected credential {secret_key}."))
     return redirect(url_for('index', error_msg="No secret key provided to revoke."))
 
+def send_telegram_alert(message: str):
+    bot_token = get_secret("TELEGRAM_BOT_TOKEN")
+    admin_id = get_secret("TELEGRAM_ADMIN_CHAT_ID")
+    if bot_token and admin_id:
+        try:
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            requests.post(url, json={"chat_id": admin_id, "text": message, "parse_mode": "HTML"}, timeout=5)
+        except Exception as e:
+            print(f"[UI Telegram Alert Failed]: {e}")
+
 @app.route("/enable_debug_mode", methods=["POST"])
 def enable_debug_mode():
-    """Enable zero-trust debug mode for 15 minutes."""
+    """Enable zero-trust debug mode for 15 minutes with a 4-minute heartbeat."""
+    set_secret("DEBUG_MODE", "True")
+    
+    send_os_notification("🚨 Ghost/Debug Mode ENABLED", "System transparency activated.")
+    send_telegram_alert("🚨 <b>SECURITY ALERT:</b> Ghost/Debug Mode was manually enabled on the host machine.")
+    
     def _ttl_worker():
         import time
-        time.sleep(900)  # 15 minutes
-        set_secret("DEBUG_MODE", "False")
+        for _ in range(3):
+            time.sleep(240)  # 4 minutes
+            if get_secret("DEBUG_MODE") != "True":
+                return
+            send_os_notification("⚠️ Ghost/Debug Mode ACTIVE", "Transparency heartbeat.")
+            send_telegram_alert("⚠️ <b>Reminder:</b> Debug Mode is still ACTIVE.")
+            
+        time.sleep(180) # Remaining 3 minutes
+        if get_secret("DEBUG_MODE") == "True":
+            set_secret("DEBUG_MODE", "False")
+            send_os_notification("✅ Ghost/Debug Mode DISABLED", "TTL expired.")
+            send_telegram_alert("✅ Ghost/Debug Mode has been disabled. System returned to stealth.")
         
-    set_secret("DEBUG_MODE", "True")
     threading.Thread(target=_ttl_worker, daemon=True).start()
     return redirect(url_for('index', message="Ghost/Debug Mode enabled. It will automatically disable after 15 minutes to preserve battery and sanity."))
 
 @app.route("/disable_debug_mode", methods=["POST"])
 def disable_debug_mode():
     """Manually disable debug mode."""
-    set_secret("DEBUG_MODE", "False")
+    if get_secret("DEBUG_MODE") == "True":
+        set_secret("DEBUG_MODE", "False")
+        send_os_notification("✅ Ghost/Debug Mode DISABLED", "Manual override.")
+        send_telegram_alert("✅ Ghost/Debug Mode has been disabled. System returned to stealth.")
     return redirect(url_for('index', message="Ghost/Debug Mode disabled."))
 
 @app.route("/save_token", methods=["POST"])
