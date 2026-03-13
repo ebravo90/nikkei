@@ -14,6 +14,7 @@ from adapters.chat.telegram import TelegramAdapter
 from ui.oauth_server import start_server
 from ui.tray_app import start_tray_app
 from core.insomnia import insomnia_manager
+from core.telemetry import start_telemetry_heartbeat
 
 
 def initialize_system():
@@ -76,6 +77,7 @@ def main():
         start_watchdog()
         start_server(port=5000)
         start_tray_app()
+        start_telemetry_heartbeat()
         print("[Nikkei OS] Background services online.\n")
         
         # 3. Attempt to initialize the Chat Adapter
