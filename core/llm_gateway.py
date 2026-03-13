@@ -9,6 +9,7 @@ from google import genai
 from google.genai import types
 
 from core.security import get_secret
+from core.error_handler import ERRORS
 
 
 class LLMProvider(ABC):
@@ -75,8 +76,9 @@ class Tier1LLM(LLMProvider):
             if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
                 print("[Tier1 Error] Rate Limit / Quota Exhausted.")
                 return {
-                    "tool": "sys_cmd",
-                    "kwargs": {"command": "echo 'Patrón, se terminaron los 20 pesos del Gemini (API Quota Exhausted). Please wait for the rate limit to reset or configure a fallback LLM.'"}
+                    "status": "system_error",
+                    "error_code": "ERR_429",
+                    "message": ERRORS["ERR_429"]
                 }
             print(f"[Tier1 Error] {e}")
             return {
@@ -128,8 +130,9 @@ class Tier2LLM(LLMProvider):
             if "429" in error_str or "resource exhausted" in error_str or "quota" in error_str:
                 print("[Tier2 Error] Rate Limit / Quota Exhausted.")
                 return {
-                    "response": "Patrón, se terminaron los 20 pesos del Gemini (API Quota Exhausted). Please wait for the rate limit to reset or configure a fallback LLM.",
-                    "status": "error"
+                    "status": "system_error",
+                    "error_code": "ERR_429",
+                    "message": ERRORS["ERR_429"]
                 }
             print(f"[Tier2 Error] {e}")
             return {
