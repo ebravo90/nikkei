@@ -1,3 +1,7 @@
+"""
+Cross-platform native OS notifications module for Project Nikkei.
+Provides Zero-Trust transparency during background autonomous executions.
+"""
 import logging
 
 try:

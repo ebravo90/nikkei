@@ -1,8 +1,5 @@
-"""
-Agente Cero (The Router) for Project Nikkei.
-Powered by Tier 1. It receives the natural language prompt, uses Function Calling 
-against the loaded Registry, and routes the payload to either a Tentacle or a Neuron.
-"""
+"""Agente Cero (The Router) for Project Nikkei.
+Powered by Tier 1. It receives the natural language prompt, uses Function Calling against the loaded Registry, and routes the payload to either a Tentacle or a Neuron."""
 import uuid
 from typing import Dict, Any
 
@@ -56,7 +53,7 @@ class AgentZero:
                         }
                         
                 # 3b. Execute verified arguments
-                debug_mode = get_secret("DEBUG_MODE") == "True" or True
+                debug_mode = get_secret("DEBUG_MODE") == "True"
                 if debug_mode:
                     from core.notifier import send_os_notification
                     send_os_notification(title="Nikkei OS Action", message=f"Executing tool: {tool_name}")
@@ -126,7 +123,7 @@ class AgentZero:
                 # Inject the bypass token into the execution payload
                 kwargs["bypass_token"] = bypass_token
                 
-                debug_mode = get_secret("DEBUG_MODE") == "True" or True
+                debug_mode = get_secret("DEBUG_MODE") == "True"
                 if debug_mode:
                     from core.notifier import send_os_notification
                     send_os_notification(title="Nikkei OS Direct Action", message=f"Executing tool: {tool_name} (Approved)")
